@@ -12,7 +12,6 @@ import (
 func partOne() int {
 	q1Count, q2Count, q3Count, q4Count := 0, 0, 0, 0
 	m, n := 101, 103
-	// m, n := 11, 7
 
 	robots := parseInput()
 	positions := []Point{}
@@ -113,69 +112,84 @@ func move(robot Robot, seconds, m, n int) Point {
 }
 
 func partTwo() int {
-	q1Count, q2Count, q3Count, q4Count := 0, 0, 0, 0
-	// m, n := 101, 103
-	m, n := 11, 7
-
+	m, n := 101, 103
 	robots := parseInput()
 	positions := []Point{}
-	// var positions []Point
-	for secs := range 100 {
-		for _, robot := range robots {
-			positions = append(positions, move(robot, secs, m, n))
-		}
-		printGrid(positions, m, n)
+	velocities := []Point{}
+
+	for _, robot := range robots {
+		positions = append(positions, robot.Position)
+		velocities = append(velocities, robot.Velocity)
 	}
 
-	printGrid(positions, m, n)
-
-	for _, pos := range positions {
-		if pos.X < m/2 && pos.Y < n/2 {
-			q1Count += 1
-		} else if pos.X > m/2 && pos.Y < n/2 {
-			q2Count += 1
-		} else if pos.X < m/2 && pos.Y > n/2 {
-			q3Count += 1
-		} else if pos.X > m/2 && pos.Y > n/2 {
-			q4Count += 1
+	res := 0
+	for second := range 10000 {
+		// assumption (a bad one) - no overlapping robots will have the XMAS tree
+		positions = moveAllRobotsOnce(positions, velocities, m, n)
+		seen := make(map[Point]bool)
+		for _, p := range positions {
+			if _, exists := seen[p]; !exists {
+				seen[p] = true
+			}
+		}
+		if len(seen) == len(robots) {
+			printGrid(positions, m, n)
+			res = second + 1
 		}
 	}
 
-	return q1Count * q2Count * q3Count * q4Count
+	return res
+}
+
+func moveAllRobotsOnce(positions, velocities []Point, m, n int) []Point {
+	newPositions := []Point{}
+	for i, pos := range positions {
+		x := pos.X + velocities[i].X
+		if x < 0 {
+			x = m + x
+		} else if x >= m {
+			x = x % m
+		}
+		y := pos.Y + velocities[i].Y
+		if y < 0 {
+			y = n + y
+		} else if y >= n {
+			y = y % n
+		}
+		newPositions = append(newPositions, NewPoint(x, y))
+	}
+	return newPositions
 }
 
 func printGrid(points []Point, m, n int) {
 	grid := [][]string{}
 	for range n {
-		row := []string{}
+		r := []string{}
 		for range m {
-			row = append(row, ".")
+			r = append(r, ".")
 		}
-		grid = append(grid, row)
+		grid = append(grid, r)
+	}
+	for _, pos := range points {
+		grid[pos.Y][pos.X] = "*"
 	}
 
-	for _, p := range points {
-		if p.X != m/2 && p.Y != n/2 {
-			grid[p.Y][p.X] = "*"
+	f, err := os.OpenFile("out.txt", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer f.Close()
+	for y := range n {
+		for x := range m {
+			f.WriteString(grid[y][x])
 		}
+		f.WriteString("\n")
 	}
 
-	for i := range len(grid) {
-		for j := range len(grid[0]) {
-			if m/2 == j {
-				grid[i][j] = "|"
-			} else if n/2 == i {
-				grid[i][j] = "-"
-			}
-			fmt.Printf(grid[i][j])
-		}
-		fmt.Println()
-	}
-	fmt.Printf("\n\n\n")
-
+	f.WriteString("\n")
 }
 
 func main() {
-	// fmt.Println(partOne())
+	fmt.Println(partOne())
 	fmt.Println(partTwo())
 }
