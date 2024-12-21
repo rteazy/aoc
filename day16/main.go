@@ -12,14 +12,17 @@ import (
 
 func partOne() int {
 	grid, start := parseInput()
-	return shortestPathToEnd(grid, start).distance
+	end, _ := shortestPathToEnd(grid, start)
+	return end.distance
 }
 
-func shortestPathToEnd(grid [][]string, start Point) *Item {
+func shortestPathToEnd(grid [][]string, start Point) (*Item, map[Point]*Item) {
 	pq := make(PriorityQueue, 0)
 	heap.Init(&pq)
-	seen := make(map[Point]*Item)
-	items := make(map[Point]*Item)
+	seen := make(map[Point]*Item)  // map for distances stored in items
+	items := make(map[Point]*Item) // map for items added in the priority queue
+	var res *Item
+	minDist := math.MaxInt
 
 	startItem := &Item{
 		point:    start,
@@ -27,8 +30,6 @@ func shortestPathToEnd(grid [][]string, start Point) *Item {
 	}
 	items[start] = startItem
 	heap.Push(&pq, startItem)
-	prev := make(map[Point]map[Point]bool)
-	end := []Point{}
 
 	for len(pq) > 0 {
 		item := heap.Pop(&pq).(*Item)
@@ -38,7 +39,15 @@ func shortestPathToEnd(grid [][]string, start Point) *Item {
 		x, y, dx, dy := item.point.X, item.point.Y, item.point.dx, item.point.dy
 
 		if grid[x][y] == "E" {
-			end = append(end, item.point)
+			// first end found will be minimum distance, every other path to end will be >= minDist
+			if item.distance < minDist {
+				minDist = item.distance
+				res = item
+			}
+			if item.distance > minDist {
+				break
+			}
+			continue
 		}
 
 		// counter-clockwise (-dj, di) ex.  (-1, 0)
@@ -58,37 +67,47 @@ func shortestPathToEnd(grid [][]string, start Point) *Item {
 			if _, visited := seen[neighborPoint]; visited {
 				continue
 			}
+
 			if _, exists := items[neighborPoint]; !exists {
-				neighborItem := &Item{point: neighborPoint, distance: math.MaxInt}
-				items[neighborPoint] = neighborItem
+				dist = math.MaxInt
+				neighbor := &Item{
+					point:    neighborPoint,
+					distance: math.MaxInt,
+				}
+				items[neighborPoint] = neighbor
 			}
-			if alt > items[neighborPoint].distance {
+
+			dist = items[neighborPoint].distance
+			if alt > dist {
 				continue
 			}
-			if alt < items[neighborPoint].distance {
+			if alt < dist {
 				items[neighborPoint].distance = alt
-				prev[neighborPoint] = make(map[Point]bool)
+				items[neighborPoint].prev = make(map[Point]bool)
 			}
-			prev[neighborPoint][item.point] = true
+			items[neighborPoint].prev[item.point] = true
 			heap.Push(&pq, items[neighborPoint])
 		}
 	}
 
-	best := end[0]
-	queue := []Point{best}
+	return res, seen
+}
+
+func partTwo() int {
+	grid, start := parseInput()
+	end, seen := shortestPathToEnd(grid, start)
+	queue := []Point{end.point}
 	unique := make(map[Point]bool)
 	for len(queue) > 0 {
 		node := queue[0]
 		queue = queue[1:]
 		newNode := NewPoint(node.X, node.Y, 0, 0)
 		unique[newNode] = true
-		for pred := range prev[node] {
+		for pred := range seen[node].prev {
 			queue = append(queue, pred)
 		}
 	}
-	fmt.Println(len(unique))
-
-	return seen[end[0]]
+	return len(unique)
 }
 
 type Point struct {
@@ -104,6 +123,7 @@ func NewPoint(x, y, dx, dy int) Point {
 type Item struct {
 	point    Point
 	distance int // The priority of the item in the queue.
+	prev     map[Point]bool
 	// The index is needed by update and is maintained by the heap.Interface methods.
 	index int // The index of the item in the heap.
 }
@@ -167,27 +187,7 @@ func parseInput() ([][]string, Point) {
 	return grid, start
 }
 
-func partTwo() int {
-	// grid, start := parseInput()
-	// end := shortestPathToEnd(grid, start)
-	// best := end[0]
-	// queue := []Point{best}
-	// unique := make(map[Point]bool)
-	// for len(queue) > 0 {
-	// 	node := queue[0]
-	// 	queue = queue[1:]
-	// 	newNode := NewPoint(node.X, node.Y, 0, 0)
-	// 	unique[newNode] = true
-	// 	for pred := range prev[node] {
-	// 		queue = append(queue, pred)
-	// 	}
-	// }
-	// fmt.Println(unique)
-
-	// fmt.Printf("Count: %d\n", len(unique))
-	return 0
-}
-
 func main() {
 	fmt.Println(partOne())
+	fmt.Println(partTwo())
 }
